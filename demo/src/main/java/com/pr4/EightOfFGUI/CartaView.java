@@ -19,7 +19,7 @@ public class CartaView extends ImageView {
      * @param carta Objeto de tipo Carta.
      */
     public CartaView(Carta carta) {
-        setFitWidth(80);
+        setFitWidth(75);
         setPreserveRatio(true);
 
         String rutaImagen;
