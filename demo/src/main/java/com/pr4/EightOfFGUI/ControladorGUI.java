@@ -105,8 +105,8 @@ public class ControladorGUI {
     private void resetSeleccion() {
         cartaSeleccionada = null;
         listaOrigen = null;
-        tipoOrigen = TipoOrigen.NONE;
-        bloqueSeleccionado = null;
+        tipoOrigen = tipoOrigen.NONE; 
+        bloqueSeleccionado = null;  
     }
 
     /**
@@ -168,8 +168,8 @@ public class ControladorGUI {
                 movido = esMovimientoValidoTableau(cartaSeleccionada, listaDestino);
                 break;
         }
-
-        if (movido) { 
+       
+        if (movido) {
             this.ultimaPista = null; // Reiniciar pistas simples
 
             if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE) {
@@ -177,21 +177,19 @@ public class ControladorGUI {
                     ListaSimple<CartaInglesa> copiaDelBloqueParaHistorial = new ListaSimple<>(bloqueSeleccionado);
                     listaDestino.insertarListaAlFin(bloqueSeleccionado);
                     movimientoActual = new Movimiento(tipo, listaOrigen, listaDestino, copiaDelBloqueParaHistorial);
-                } else {
+                } else { 
                     if (bloqueSeleccionado != null && bloqueSeleccionado.getTamanio() == 1) {
                         CartaInglesa carta = bloqueSeleccionado.eliminarInicio(); // Consumir el bloque
                         if (carta != null) {
                             listaDestino.insertarFin(carta);
-                            movimientoActual = new Movimiento(tipo, listaOrigen, listaDestino, carta); // Usa constructor de carta unica
+                            movimientoActual = new Movimiento(tipo, listaOrigen, listaDestino, carta); // Usa constructor de carta única
                         } else {
-                              if(listaOrigen != null) listaOrigen.insertarListaAlFin(bloqueSeleccionado); // Intentar restaurar
-                              resetSeleccion(); 
-                              return; // Salir
+                              if(listaOrigen != null) listaOrigen.insertarListaAlFin(bloqueSeleccionado); // Restaurar
+                              resetSeleccion(); return; 
                         }
                     } else {
-                         if(listaOrigen != null && bloqueSeleccionado != null) listaOrigen.insertarListaAlFin(bloqueSeleccionado); // Intentar restaurar
-                         resetSeleccion(); 
-                         return; // Salir
+                         if(listaOrigen != null && bloqueSeleccionado != null) listaOrigen.insertarListaAlFin(bloqueSeleccionado); // Restaurar
+                         resetSeleccion(); return; 
                     }
                 }
             } else if (tipoOrigen == TipoOrigen.TABLEAU || tipoOrigen == TipoOrigen.CAMPO) {
@@ -200,8 +198,7 @@ public class ControladorGUI {
                     carta = listaOrigen.eliminarFin(); // Quitar del final
                 } else {
                     System.err.println("Error crítico: listaOrigen es null al mover carta única.");
-                    resetSeleccion(); 
-                    return; // Salir
+                    resetSeleccion(); return; 
                 }
 
                 if (carta != null) {
@@ -209,13 +206,11 @@ public class ControladorGUI {
                     movimientoActual = new Movimiento(tipo, listaOrigen, listaDestino, carta); // Usa constructor de carta única
                 } else {
                     System.err.println("Error: No se pudo obtener la carta única para mover.");
-                    resetSeleccion();
-                    return; // Salir
+                    resetSeleccion(); return; 
                 }
-            } else {
+                        } else {
                  System.err.println("Error: tipoOrigen desconocido durante movimiento.");
-                 resetSeleccion(); 
-                 return; // Salir
+                 resetSeleccion(); return; 
             }
 
             if (movimientoActual != null) {
@@ -233,10 +228,9 @@ public class ControladorGUI {
                 detectarFinDeJuego();
             } else {
                   if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE && listaOrigen != null && bloqueSeleccionado != null) {
-                      listaOrigen.insertarListaAlFin(bloqueSeleccionado); 
+                      listaOrigen.insertarListaAlFin(bloqueSeleccionado); // Restaurar por si acaso
                   }
             }
-
             resetSeleccion(); 
 
         } else { 
@@ -244,67 +238,58 @@ public class ControladorGUI {
                 listaOrigen.insertarListaAlFin(bloqueSeleccionado);
             }
             resetSeleccion(); 
+            view.refrescarTablero();
         }
- 
     } 
-
     /**
      * Se llama al hacer click en una carta de una columna
      */
     public void clickTableau(int colIndex, CartaInglesa cartaClickeada) {
+                if (cartaClickeada == null) {
+            resetSeleccion(); return;
+        }
         ListaSimple<CartaInglesa> tableauOrigen = game.getTableau()[colIndex];
-                        
         //1er click cuando se elige el origen
+        if (tableauOrigen == null) {
+            resetSeleccion(); return;
+        }
+
         if (cartaSeleccionada == null) {
-            // Solo se pueden seleccionar cartas boca arriba
             if (!cartaClickeada.isFaceup()) {
                 resetSeleccion();
                 return;
             }
 
-            // Intenta cortar la lista en la carta clickeada
+            // Intenta cortar la lista
             ListaSimple<CartaInglesa> posibleBloque = tableauOrigen.dividirEn(cartaClickeada);
 
-            if (posibleBloque != null) {
-                // Revisa si la escalera es valida
+            if (posibleBloque != null) { 
                 if (esEscaleraValida(posibleBloque)) {
-                    seleccionarBloque(posibleBloque.obtenerInicio(), posibleBloque, tableauOrigen); 
+                    seleccionarBloque(posibleBloque.obtenerInicio(), posibleBloque, tableauOrigen);
                 } else {
-                    tableauOrigen.insertarListaAlFin(posibleBloque); // Poner de vuelta en la lista
+                    tableauOrigen.insertarListaAlFin(posibleBloque); // Rollback
                     resetSeleccion();
                 }
-            } else {
-                 if (cartaClickeada == tableauOrigen.obtenerUltimo() && tableauOrigen.getTamanio() == 1 ) {
-                     ListaSimple<CartaInglesa> bloqueDeUno = new ListaSimple<>();
-                     bloqueDeUno.insertarFin(cartaClickeada);
-                     seleccionarBloque(cartaClickeada, bloqueDeUno, tableauOrigen);
-                 }
-                 else if (cartaClickeada == tableauOrigen.obtenerUltimo()) {
-                    seleccionarCarta(cartaClickeada, tableauOrigen, TipoOrigen.TABLEAU);
-                 }
-                  else {
-                     if (posibleBloque != null) 
-                     tableauOrigen.insertarListaAlFin(posibleBloque); 
-                     resetSeleccion();
+            } else { 
+                 if (cartaClickeada == tableauOrigen.obtenerUltimo()) {
+                     seleccionarCarta(cartaClickeada, tableauOrigen, TipoOrigen.TABLEAU);
+                 } else {
+                                         resetSeleccion();
                  }
             }
-        }
-                //2do click cuando se mueve al destino
-        else {
-            ListaSimple<CartaInglesa> tableauDestino = game.getTableau()[colIndex]; // Destino es donde se hizo el 2do clic
-
-            // Determinar tipo de movimiento
+        
+        } else {
+            ListaSimple<CartaInglesa> tableauDestino = game.getTableau()[colIndex]; 
             TipoMovimiento tipo;
             if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE) {
                 tipo = TipoMovimiento.TABLEAU_BLOQUE_A_TABLEAU;
             } else if (tipoOrigen == TipoOrigen.TABLEAU) {
-                // Solo se puede mover la carta superior si se selecciono
                  if (cartaSeleccionada != listaOrigen.obtenerUltimo()) {
                     resetSeleccion();
                     return;
                  }
                 tipo = TipoMovimiento.TABLEAU_A_TABLEAU;
-            } else { // Origen es CAMPO
+            } else {
                 tipo = TipoMovimiento.CAMPO_A_TABLEAU;
             }
             intentarMover(tableauDestino, tipo); 
@@ -332,9 +317,17 @@ public class ControladorGUI {
         
         ListaSimple<CartaInglesa> tableauDestino = game.getTableau()[colIndex];
         
-        TipoMovimiento tipo = (tipoOrigen == TipoOrigen.TABLEAU) ? 
-                             TipoMovimiento.TABLEAU_A_TABLEAU : 
-                             TipoMovimiento.CAMPO_A_TABLEAU;
+        TipoMovimiento tipo;
+         if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE) {
+                tipo = TipoMovimiento.TABLEAU_BLOQUE_A_TABLEAU;
+            } 
+            else if(tipoOrigen == TipoOrigen.TABLEAU){
+                tipo = TipoMovimiento.TABLEAU_A_TABLEAU;
+            }
+            else {
+                tipo = TipoMovimiento.CAMPO_A_TABLEAU;
+            }
+                             
 
         intentarMover(tableauDestino, tipo);
     }
@@ -344,6 +337,11 @@ public class ControladorGUI {
      */
     public void clickCampoLibre(int celdaIndex) {
         ListaSimple<CartaInglesa> celda = game.getCampos()[celdaIndex];
+
+        if (celda == null) {
+            resetSeleccion();
+            return;
+        }
 
         if (cartaSeleccionada == null) {
             if (!celda.estaVacia()) {
@@ -373,10 +371,19 @@ public class ControladorGUI {
 
         ListaSimple<CartaInglesa> fundacion = game.getFoundations()[fundacionIndex];
         
-        TipoMovimiento tipo = (tipoOrigen == TipoOrigen.TABLEAU) ? 
-                             TipoMovimiento.TABLEAU_A_FUNDACION : 
-                             TipoMovimiento.CAMPO_A_FUNDACION;
-                             
+        if (fundacion == null) {
+            resetSeleccion();
+            return;
+        }
+
+        TipoMovimiento tipo;
+        if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE) {
+            tipo = TipoMovimiento.TABLEAU_A_FUNDACION;
+        } else if (tipoOrigen == TipoOrigen.TABLEAU) {
+            tipo = TipoMovimiento.TABLEAU_A_FUNDACION;
+        } else { 
+            tipo = TipoMovimiento.CAMPO_A_FUNDACION;
+        }                             
         intentarMover(fundacion, tipo);
     }
 
@@ -395,49 +402,59 @@ public class ControladorGUI {
             return;
         }
 
-        // Limpiar pistas
-        this.ultimaPista = null; 
+        // Limpiar pistas ANTES de hacer nada
+        // this.ultimaPista = null; // (Ya tienes 'pistasMostradas')
+        this.pistasMostradas.clear(); // Usa la variable correcta
         if (this.pistaActiva != null) {
             this.pistaActiva = null;
             view.mostrarTextoPista("");
         }
+        
+        // Limpiar cualquier selección actual ANTES de deshacer
+        resetSeleccion(); 
 
-
-        // Sacar el ultimo omvimeinto
+        // 1. Sacar el ultimo movimiento
         Movimiento ultimoMovimiento = historialMovimientos.pop();
 
-        int tamanoBloque = ultimoMovimiento.bloqueMovido.getTamanio();
-
-        ListaSimple<CartaInglesa> bloqueQuitadoTemp = new ListaSimple<>();
-
-        for (int i = 0; i < tamanoBloque; i++) {
-            CartaInglesa cartaQuitada = ultimoMovimiento.destino.eliminarFin();
-             if (cartaQuitada == null) {
-                 break; 
-             }
-             bloqueQuitadoTemp.insertaInicio(cartaQuitada); 
+        if (ultimoMovimiento == null || ultimoMovimiento.bloqueMovido == null) {
+            System.err.println("Error: Movimiento en historial es inválido.");
+            return;
         }
 
+        // 2. Quitar el bloque del DESTINO
+        int tamanoBloque = ultimoMovimiento.bloqueMovido.getTamanio();
+        
+        // (La lógica para quitar N cartas del final)
+        for (int i = 0; i < tamanoBloque; i++) {
+            CartaInglesa cartaQuitada = ultimoMovimiento.destino.eliminarFin();
+            if (cartaQuitada == null) {
+                 System.err.println("Error en Deshacer: Destino quedó vacío inesperadamente.");
+                 break; // Salir del bucle si algo salió mal
+            }
+        }
+        
+        // 3. Pegar el bloque (que era una copia) de vuelta al ORIGEN
         ultimoMovimiento.origen.insertarListaAlFin(ultimoMovimiento.bloqueMovido);
 
+        // 4. Voltear la CARTA SUPERIOR del origen si es TABLEAU
         boolean origenEraTableau = false;
         for(int i=0; i<8; i++){
-            if(game.getTableau()[i] == ultimoMovimiento.origen)
-            origenEraTableau = true;
+            if(game.getTableau()[i] == ultimoMovimiento.origen) {
+                origenEraTableau = true;
+                break;
+            }
         }
 
         if (origenEraTableau) {
-             // Simplemente obtenemos la nueva ultima carta del origen
              CartaInglesa nuevaCartaSuperior = ultimoMovimiento.origen.obtenerUltimo();
-             // Si existe y está boca abajo, la volteamos
              if (nuevaCartaSuperior != null && !nuevaCartaSuperior.isFaceup()) {
                  nuevaCartaSuperior.makeFaceUp();
              }
         }
 
-        resetSeleccion();
-    view.refrescarTablero();
-}
+        // 5. Refrescar la vista (resetSeleccion ya se hizo al inicio)
+        view.refrescarTablero();
+    }
     
 
 /*
