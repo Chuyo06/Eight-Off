@@ -4,11 +4,17 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.image.Image;
+
+import java.util.ArrayList;
+
 import com.pr4.DeckOfCards.CartaInglesa;
 import com.pr4.EightOff.EightOffGame;
 import com.pr4.Estructuras.ListaSimple;
 import javafx.geometry.Pos;
+import javafx.scene.control.ListView; 
+import javafx.collections.FXCollections;
 
 /*
  * Clase que es la vista general del tablero del solitario.
@@ -22,6 +28,13 @@ public class TableroView extends BorderPane {
     private VBox filaIzquierda; //Foundation
     private Label labelPista; //label para mostrar la pista
 
+    private Button pistaBoton ;
+    private Button redoBoton ;
+    private Button undoBoton ;
+    private Button aplicarBoton ;
+
+    private Label labelModoHistorial;
+    private ListView<String> visorHistorial;
     /*
      * Constructor que recibe el juego y el controlador, ademas
      * que inicializa el tbalero con sus contendedores.
@@ -61,6 +74,85 @@ public class TableroView extends BorderPane {
         setTop(filaSuperior);
         setCenter(tableauGroup);
         setLeft(filaIzquierda); 
+
+        labelModoHistorial = new Label("MODO HISTORIAL");
+        labelModoHistorial.setMaxWidth(Double.MAX_VALUE); 
+        labelModoHistorial.setAlignment(Pos.CENTER); 
+        labelModoHistorial.setStyle(
+            "-fx-font-size: 20px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: black; " +
+            "-fx-background-color: rgba(230, 245, 5); " + //fondo amarillo
+            "-fx-padding: 5 10; " +
+            "-fx-background-radius: 10;"
+        );
+        labelModoHistorial.setVisible(false);
+
+        setBottom(labelModoHistorial);
+        BorderPane.setAlignment(labelModoHistorial, Pos.CENTER);
+        BorderPane.setMargin(labelModoHistorial, new Insets(10));
+
+        VBox historialGroup = new VBox(5);
+        historialGroup.setAlignment(Pos.TOP_CENTER);
+        historialGroup.setPadding(new Insets(10));
+
+        Label historialTitulo = new Label("Historial");
+        historialTitulo.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+
+        visorHistorial = new ListView<>();
+        visorHistorial.setPrefHeight(400); 
+        visorHistorial.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                
+                if (empty || item == null) {
+                    // Si la fila está vacía, hacerla transparente
+                    setText(null);
+                    setStyle("-fx-background-color: transparent;");
+                } else {
+                    // Si la fila tiene texto ("1. Movió...")
+                    setText(item);
+                    
+                    String style;
+                    if (isSelected()) {
+                        // Estilo si está SELECCIONADA
+                        style = "-fx-background-color: #4682B4; " + // Fondo azul
+                                "-fx-background-radius: 10; " +     // Redondeado
+                                "-fx-text-fill: white; " +
+                                "-fx-font-weight: bold; " +
+                                "-fx-padding: 3 5;";
+                    } else {
+                        // Estilo si NO está seleccionada
+                        style = "-fx-background-color: rgba(0, 0, 0, 0.3); " + // Fondo oscuro
+                                "-fx-background-radius: 10; " +               // Redondeado
+                                "-fx-text-fill: white; " +
+                                "-fx-font-weight: bold; " +
+                                "-fx-padding: 3 5;";
+                    }
+                    
+                    setStyle(style);
+                }
+            }
+        });
+
+        
+        
+        visorHistorial.setStyle(
+            "-fx-border-color: #AAAAAA; " +     
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 15; " +        
+            "-fx-background-radius: 15; " +
+            "-fx-background-color: transparent; " // ¡Para quitar el fondo blanco!
+        );      
+
+        
+        
+        
+        historialGroup.getChildren().addAll(historialTitulo, visorHistorial);
+        
+        setRight(historialGroup);
 
         //Se pone fondo al tablero
         setBackground(new Background(
@@ -167,13 +259,25 @@ public class TableroView extends BorderPane {
         
         // Grupo de botones
         VBox buttonBox = new VBox(10); 
-        Button undoButton = new Button("Deshacer");
-        undoButton.setOnAction(e -> controlador.deshacerMovimiento());
-        undoButton.setStyle("-fx-background-color: #DB0000; -fx-text-fill: black; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 5 10;");
-        Button pistaButton = new Button("Pista");
-        pistaButton.setOnAction(e -> controlador.darPista());
-        pistaButton.setStyle("-fx-background-color: #FFFF08; -fx-text-fill: black; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 5 10;");
-        buttonBox.getChildren().addAll(undoButton, pistaButton);
+       
+        pistaBoton = new Button("Pista");
+        pistaBoton.setOnAction(e -> controlador.darPista());
+        pistaBoton.setStyle("-fx-background-color: #FFFF08; -fx-text-fill: black; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 5 10;");
+
+        undoBoton = new Button("Deshacer");
+        undoBoton.setOnAction(e -> controlador.deshacerMovimiento());
+        undoBoton.setStyle("-fx-background-color: #DB0000; -fx-text-fill: black; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 5 10;");
+
+        redoBoton = new Button("Rehacer");
+        redoBoton.setOnAction(e -> controlador.rehacerMovimiento());
+        redoBoton.setStyle("-fx-background-color: #4682B4; -fx-text-fill: black; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 5 10;");
+
+        aplicarBoton = new Button("Aplicar Estado");
+        aplicarBoton.setOnAction(e -> controlador.aplicarEstadoHistorial());
+        aplicarBoton.setStyle("-fx-background-color: #0E9403; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 5 10;");
+        aplicarBoton.setMaxWidth(Double.MAX_VALUE);
+
+        buttonBox.getChildren().addAll(pistaBoton , undoBoton , redoBoton ,aplicarBoton);
         HBox.setMargin(buttonBox, new Insets(60, 0, 0, 0)); 
 
         
@@ -288,6 +392,52 @@ public class TableroView extends BorderPane {
         renderFilaIzquierda();
         renderFilaSuperior();
         renderTableau();
+    }
+
+    /**
+     * Se muestran los botones o no, si se esta en modo histral
+     * @param puedeUndo true si debe estar activo
+     * @param puedeRedo true si debe estar activo
+     * @param enModoHistorial true si debe estar activo
+     */
+    public void actualizarBotones(boolean puedeUndo, boolean puedeRedo, boolean enModoHistorial) {
+        //Desactivar y activar
+        if (undoBoton != null) {
+            undoBoton.setDisable(!puedeUndo); // desactivar si no se puede undo
+        }
+        if (redoBoton != null) {
+            redoBoton.setDisable(!puedeRedo); // desactivar si no se puede redo
+        }
+        if (aplicarBoton != null) {
+            aplicarBoton.setDisable(!enModoHistorial); // desactivar si no estamos en modo histroial
+        }
+        
+        if (pistaBoton != null) {
+            pistaBoton.setDisable(enModoHistorial); // desactivar si estamos en modo histroial
+        }
+
+        if (labelModoHistorial != null) {
+            labelModoHistorial.setVisible(enModoHistorial);
+        }
+    }
+
+    /**
+     * Meotod que actuliza el listView con los movimeintos que haga el usuario
+     */
+    public void actualizarVisorHistorial(ArrayList<String> movimientos, int indiceActual) {
+        if (visorHistorial != null) {
+            //Se llenan la lisat con los movimeinto que envia desde el controaldor
+            visorHistorial.setItems(FXCollections.observableArrayList(movimientos));
+            
+            // Visualente se selecciona el movimeinto actual en almlista
+            //o cuando se recorre en el modo historial
+            if (indiceActual >= 0) {
+                visorHistorial.getSelectionModel().select(indiceActual);
+                visorHistorial.scrollTo(indiceActual);
+            } else {
+                visorHistorial.getSelectionModel().clearSelection();
+            }
+        }
     }
 
 }

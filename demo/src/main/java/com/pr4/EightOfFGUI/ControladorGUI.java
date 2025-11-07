@@ -32,8 +32,9 @@ public class ControladorGUI {
     private Movimiento ultimaPista = null;
     private ArrayList<Movimiento> pistasMostradas = new ArrayList<>();
     private Movimiento pistaActiva = null;
-    private Pila<Movimiento> historialMovimientos = new Pila<>(600); //Pila con 600 espacios para el deshacer
-
+    //private Pila<Movimiento> historialMovimientos = new Pila<>(600); //Pila con 600 espacios para el deshacer
+    private Historial historialJuego = new Historial(); //Historial con nodo doble para la lista doble
+    private boolean modoHistorial = false; //boolean para saber si esta en modo no mover
     //Variable para conocer la carta seleccionada y la de columna va
     private CartaInglesa cartaSeleccionada = null; //Carta seleccionada
     private ListaSimple<CartaInglesa> listaOrigen = null;
@@ -54,6 +55,7 @@ public class ControladorGUI {
      */
     public void setView(TableroView view) {
         this.view = view;
+        actualizarEstadoGUI(); //actualizar el estado despues de aplicar uno
     }
 
     /**
@@ -152,6 +154,10 @@ public class ControladorGUI {
      * los diferentes tipos de movimientos que hay
      */
     private void intentarMover(ListaSimple<CartaInglesa> listaDestino, TipoMovimiento tipo) {
+        if (modoHistorial) {
+            return; 
+        } //Si esta en modo historial no se deja hacer ningun movimineto
+
         boolean movido = false;
         Movimiento movimientoActual = null;
 
@@ -205,16 +211,14 @@ public class ControladorGUI {
                     listaDestino.insertarFin(carta);
                     movimientoActual = new Movimiento(tipo, listaOrigen, listaDestino, carta); // Usa constructor de carta única
                 } else {
-                    System.err.println("Error: No se pudo obtener la carta única para mover.");
                     resetSeleccion(); return; 
                 }
                         } else {
-                 System.err.println("Error: tipoOrigen desconocido durante movimiento.");
                  resetSeleccion(); return; 
             }
 
             if (movimientoActual != null) {
-                historialMovimientos.push(movimientoActual);
+                historialJuego.agregarMovimiento(movimientoActual);
 
                 if (pistaActiva != null && pistaActiva.esIgual(movimientoActual)) {
                     pistaActiva = null;
@@ -239,12 +243,18 @@ public class ControladorGUI {
             }
             resetSeleccion(); 
             view.refrescarTablero();
+            view.mostrarTextoPista("Movimiento invalido.Seleccioanr otra carta"); //Mostarr mensaje cuando el movieminto es invalido
+
         }
+        actualizarEstadoGUI(); //Actualizar esatdo
     } 
     /**
      * Se llama al hacer click en una carta de una columna
      */
     public void clickTableau(int colIndex, CartaInglesa cartaClickeada) {
+        if (modoHistorial) {
+        return; //si modo historialesta activiao no deja hcer anda
+    }
                 if (cartaClickeada == null) {
             resetSeleccion(); return;
         }
@@ -254,6 +264,7 @@ public class ControladorGUI {
             resetSeleccion(); return;
         }
 
+        //1er click origen
         if (cartaSeleccionada == null) {
             if (!cartaClickeada.isFaceup()) {
                 resetSeleccion();
@@ -267,18 +278,34 @@ public class ControladorGUI {
                 if (esEscaleraValida(posibleBloque)) {
                     seleccionarBloque(posibleBloque.obtenerInicio(), posibleBloque, tableauOrigen);
                 } else {
-                    tableauOrigen.insertarListaAlFin(posibleBloque); // Rollback
+                    tableauOrigen.insertarListaAlFin(posibleBloque); 
                     resetSeleccion();
+                    view.refrescarTablero();
+                    view.mostrarTextoPista("No es una escalera valida.Seleccionar otra carta");
                 }
             } else { 
                  if (cartaClickeada == tableauOrigen.obtenerUltimo()) {
                      seleccionarCarta(cartaClickeada, tableauOrigen, TipoOrigen.TABLEAU);
                  } else {
-                                         resetSeleccion();
+                    resetSeleccion();
                  }
             }
         
         } else {
+            //Condicion que maneja la deseleccion de un click
+            if (game.getTableau()[colIndex] == listaOrigen) {
+                if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE && bloqueSeleccionado != null) {
+                    listaOrigen.insertarListaAlFin(bloqueSeleccionado);
+                }
+                resetSeleccion();
+                view.refrescarTablero();
+                if (cartaClickeada == game.getTableau()[colIndex].obtenerUltimo()) {
+                    seleccionarCarta(cartaClickeada, game.getTableau()[colIndex], TipoOrigen.TABLEAU);
+                }
+
+                return; 
+            }
+
             ListaSimple<CartaInglesa> tableauDestino = game.getTableau()[colIndex]; 
             TipoMovimiento tipo;
             if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE) {
@@ -310,6 +337,10 @@ public class ControladorGUI {
      * Se llama al hacer click en un espacio vacio del tableau
      */
     public void clickTableauVacio(int colIndex) {
+        if (modoHistorial) {
+        System.out.println("En modo historial, no se puede jugar.");
+        return; // No hacer nada si estamos en modo visor
+    }
         if (cartaSeleccionada == null) {
             resetSeleccion();
             return; 
@@ -336,6 +367,10 @@ public class ControladorGUI {
      * Se llama al hacer click en un campo libre
      */
     public void clickCampoLibre(int celdaIndex) {
+        if (modoHistorial) {
+        System.out.println("En modo historial, no se puede jugar.");
+        return; // No hacer nada si estamos en modo visor
+    }
         ListaSimple<CartaInglesa> celda = game.getCampos()[celdaIndex];
 
         if (celda == null) {
@@ -364,6 +399,10 @@ public class ControladorGUI {
      * Se llama al hacer click en una fundacion.
      */
     public void clickFundacion(int fundacionIndex) {
+        if (modoHistorial) {
+        System.out.println("En modo historial, no se puede jugar.");
+        return; // No hacer nada si estamos en modo visor
+    }
         if (cartaSeleccionada == null) {
             resetSeleccion();
             return; 
@@ -386,76 +425,178 @@ public class ControladorGUI {
         }                             
         intentarMover(fundacion, tipo);
     }
+    /**
+     * logica para deshacer que se usa en un boton pero no se aplica
+     * hasat que el usuario lo acepta
+     */
+    public void deshacerMovimiento() {
+
+        if (cartaSeleccionada != null && !modoHistorial) {
+            
+            // Si era un bloque, lo devolvemos
+            if (tipoOrigen == TipoOrigen.TABLEAU_BLOQUE && bloqueSeleccionado != null && listaOrigen != null) {
+                listaOrigen.insertarListaAlFin(bloqueSeleccionado);
+            }
+            
+            // Limpiamos
+            resetSeleccion();
+            view.refrescarTablero();
+            actualizarEstadoGUI(); // Actualiza la GUI 
+            view.mostrarTextoPista("Seleccion cancelada.");
+            
+            return; 
+        }
+
+        //Se entra al modo de vista(Historial)
+        modoHistorial = true;
+
+        // Se obtiene el movieminto
+        Movimiento mov = historialJuego.undo();
+        
+        // Si no hay nada que deshacer se cancela
+        if (mov == null) {
+            return;
+        }
+        
+        // Se aplica el movimiento visualemnte y se revierte
+        revertirMovimiento(mov);
+        
+        // actualizar la vista y GUI
+        resetSeleccion();
+        view.refrescarTablero();
+
+        actualizarEstadoGUI();
+    }
+    
+    /**
+     *  logica para rehacer que se usa en un boton pero no se aplica
+     * hasat que el usuario lo acepta
+     */
+    public void rehacerMovimiento() {
+        //Se entra al modo de vista(Historial)
+        modoHistorial = true;
+        System.out.println("Entrando a Modo Visor (Redo)");
+
+        // Se obtiene el movieminto
+        Movimiento mov = historialJuego.redo();
+        
+        // Si no hay nada que reahcer se cancela
+        if (mov == null) {
+            System.out.println("No hay más movimientos para rehacer.");
+            return;
+        }
+        
+        // se aplica el movimeinto visaulmene
+        aplicarMovimiento(mov);
+        
+        // actualizarGUI
+        resetSeleccion();
+        view.refrescarTablero();
+        actualizarEstadoGUI();
+    }
 
     /**
-     * Deshace el ultimo movimiento
+     * Confrirmar el estado del historial
      */
-
-    public void deshacerMovimiento() {
-        if (historialMovimientos.pila_vacia()) {
-            System.out.println("No hay movimientos para deshacer.");
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Deshacer");
-            alert.setHeaderText(null);
-            alert.setContentText("No hay más movimientos para deshacer.");
-            alert.showAndWait();
-            return;
-        }
-
-        // Limpiar pistas ANTES de hacer nada
-        // this.ultimaPista = null; // (Ya tienes 'pistasMostradas')
-        this.pistasMostradas.clear(); // Usa la variable correcta
-        if (this.pistaActiva != null) {
-            this.pistaActiva = null;
-            view.mostrarTextoPista("");
-        }
+    public void aplicarEstadoHistorial() {
         
-        // Limpiar cualquier selección actual ANTES de deshacer
-        resetSeleccion(); 
-
-        // 1. Sacar el ultimo movimiento
-        Movimiento ultimoMovimiento = historialMovimientos.pop();
-
-        if (ultimoMovimiento == null || ultimoMovimiento.bloqueMovido == null) {
-            System.err.println("Error: Movimiento en historial es inválido.");
-            return;
-        }
-
-        // 2. Quitar el bloque del DESTINO
-        int tamanoBloque = ultimoMovimiento.bloqueMovido.getTamanio();
+        // Metodo para cortar la lista si se preisona redo
+        historialJuego.aplicarEstadoActual();
         
-        // (La lógica para quitar N cartas del final)
+        // salir del modo historial
+        modoHistorial = false;
+        
+        actualizarEstadoGUI();//actualizar gui
+    }
+
+    /**
+     * Revierte cartas del destino al origen 
+     * se usa para dehacer
+     */
+    private void revertirMovimiento(Movimiento mov) {
+        if (mov == null) return;
+        
+        // Se quita el bloque destino
+        int tamanoBloque = mov.bloqueMovido.getTamanio();
         for (int i = 0; i < tamanoBloque; i++) {
-            CartaInglesa cartaQuitada = ultimoMovimiento.destino.eliminarFin();
+            CartaInglesa cartaQuitada = mov.destino.eliminarFin();
             if (cartaQuitada == null) {
-                 System.err.println("Error en Deshacer: Destino quedó vacío inesperadamente.");
-                 break; // Salir del bucle si algo salió mal
+                 break;
             }
         }
         
-        // 3. Pegar el bloque (que era una copia) de vuelta al ORIGEN
-        ultimoMovimiento.origen.insertarListaAlFin(ultimoMovimiento.bloqueMovido);
+        // Pegar el bloque al origen
+        mov.origen.insertarListaAlFin(mov.bloqueMovido);
 
-        // 4. Voltear la CARTA SUPERIOR del origen si es TABLEAU
+        // voltear la carta dinal
         boolean origenEraTableau = false;
         for(int i=0; i<8; i++){
-            if(game.getTableau()[i] == ultimoMovimiento.origen) {
+            if(game.getTableau()[i] == mov.origen) {
                 origenEraTableau = true;
                 break;
             }
         }
-
         if (origenEraTableau) {
-             CartaInglesa nuevaCartaSuperior = ultimoMovimiento.origen.obtenerUltimo();
+             CartaInglesa nuevaCartaSuperior = mov.origen.obtenerUltimo();
              if (nuevaCartaSuperior != null && !nuevaCartaSuperior.isFaceup()) {
                  nuevaCartaSuperior.makeFaceUp();
              }
         }
-
-        // 5. Refrescar la vista (resetSeleccion ya se hizo al inicio)
-        view.refrescarTablero();
     }
-    
+
+    /**
+     * Aplica un momvimeinto se usa cuando se presiona rehacer
+     */
+    private void aplicarMovimiento(Movimiento mov) {
+        if (mov == null || mov.bloqueMovido == null || mov.bloqueMovido.estaVacia()) {            return;
+        }
+
+        // Se obtiene la carta que se movio siendo bloque o carta indiidual
+        CartaInglesa cartaBase = mov.bloqueMovido.obtenerInicio();
+        ListaSimple<CartaInglesa> bloqueReal; // El bloque que vamos a mover AHORA
+        
+        // revisar si el movimiento se guardo como bloque
+        if (mov.tipo == TipoMovimiento.TABLEAU_BLOQUE_A_TABLEAU) {
+            
+            // Si es bloque, se corta y se regresa al origen
+            bloqueReal = mov.origen.dividirEn(cartaBase);
+            
+            // verificacion si hay algu fallo
+            if (bloqueReal == null) {
+                 // y se vuevle a mandar al origen
+                 mov.origen.insertarListaAlFin(mov.bloqueMovido);
+                 return;
+            }
+
+        } else {
+            // Fue un movieinto de carta unica
+            bloqueReal = new ListaSimple<>();
+            CartaInglesa cartaUnica = mov.origen.eliminarFin(); // Quitar la carta superior
+            
+            if (cartaUnica == null) {
+                 return;
+            }
+            bloqueReal.insertarFin(cartaUnica);
+        }
+
+        // 2. Pegar el bloque o carta al destino
+        mov.destino.insertarListaAlFin(bloqueReal);
+
+        //voltear la ultima carta
+        boolean origenEraTableau = false;
+        for(int i=0; i<8; i++){
+            if(game.getTableau()[i] == mov.origen) {
+                origenEraTableau = true;
+                break;
+            }
+        }
+        if (origenEraTableau) {
+             CartaInglesa nuevaCartaSuperior = mov.origen.obtenerUltimo();
+             if (nuevaCartaSuperior != null && !nuevaCartaSuperior.isFaceup()) {
+                 nuevaCartaSuperior.makeFaceUp();
+             }
+        }
+    }
 
 /*
      * Busca un movimiento válido, ignorando una LISTA de pistas ya mostradas.
@@ -657,5 +798,50 @@ public class ControladorGUI {
             }
         }
     }
+
+    /**
+     * Metodo para llamar a todos los botones para actualizar el GUI.
+     */
+    private void actualizarEstadoGUI() {
+        if (view != null) {
+            boolean puedeUndo = historialJuego.puedeUndo();
+            boolean puedeRedo = historialJuego.puedeRedo();
+            
+            view.actualizarBotones(puedeUndo, puedeRedo, modoHistorial);
+
+            // ArrayList con los movimeintos 
+            ArrayList<String> listaStrings = new ArrayList<>();
+            int indiceActual = -1; // - para el indice
+            int i = 0; // Contador 
+
+            //obtener infromacion en base a los nodos de la lsita doble
+            NodoDoble<Movimiento> r = historialJuego.getInicio();
+            NodoDoble<Movimiento> nodoActual = historialJuego.getEstadoActual();
+
+            // Recorrer la lista doble
+            while (r != null) {
+                Movimiento mov = r.getInfo();
+                
+                // Se  hace el string
+                String cartaStr = mov.bloqueMovido.obtenerInicio().toString();
+                String origenStr = getNombreLista(mov.origen);
+                String destinoStr = getNombreLista(mov.destino);
+                
+                String desc = (i + 1) + ". Movió " + cartaStr + " de " + origenStr + " a " + destinoStr;
+                listaStrings.add(desc);
+                
+                // Comprobar si este es el nodo actual
+                if (r == nodoActual) {
+                    indiceActual = i;
+                }
+                
+                r = r.getSig();
+                i++;
+            }
+            //enviar el string a la lista
+            view.actualizarVisorHistorial(listaStrings, indiceActual);
+        }
+    }
+
 }
 
