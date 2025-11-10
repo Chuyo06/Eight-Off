@@ -1,8 +1,8 @@
-package com.pr4.EightOfFGUI; // (Asegúrate que el paquete sea el correcto)
+package com.pr4.EightOfFGUI; 
 
 import java.util.ArrayList;
 
-import com.pr4.Estructuras.NodoDoble; // (Importa tu NodoDoble)
+import com.pr4.Estructuras.NodoDoble; 
 
 /**
  * Esta clase maneja el historial de movimientos usando una
