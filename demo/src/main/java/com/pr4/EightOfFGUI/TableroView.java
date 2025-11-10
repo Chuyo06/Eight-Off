@@ -108,23 +108,20 @@ public class TableroView extends BorderPane {
                 super.updateItem(item, empty);
                 
                 if (empty || item == null) {
-                    // Si la fila está vacía, hacerla transparente
                     setText(null);
                     setStyle("-fx-background-color: transparent;");
                 } else {
-                    // Si la fila tiene texto ("1. Movió...")
                     setText(item);
                     
                     String style;
                     if (isSelected()) {
-                        // Estilo si está SELECCIONADA
-                        style = "-fx-background-color: #4682B4; " + // Fondo azul
+                        
+                        style = "-fx-background-color: #F07DFA; " + // Fondo azul
                                 "-fx-background-radius: 10; " +     // Redondeado
                                 "-fx-text-fill: white; " +
                                 "-fx-font-weight: bold; " +
                                 "-fx-padding: 3 5;";
                     } else {
-                        // Estilo si NO está seleccionada
                         style = "-fx-background-color: rgba(0, 0, 0, 0.3); " + // Fondo oscuro
                                 "-fx-background-radius: 10; " +               // Redondeado
                                 "-fx-text-fill: white; " +
